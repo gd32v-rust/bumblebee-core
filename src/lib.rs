@@ -1,4 +1,5 @@
 #![no_std]
+#![cfg_attr(feature = "inline-asm", feature(asm))]
 
 #[macro_use]
 mod macros;
