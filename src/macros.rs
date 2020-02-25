@@ -1,4 +1,32 @@
 // Ref: crate `riscv`
+macro_rules! read_csr {
+    ($csr_number:expr, $asm_fn: ident) => {
+        /// Reads the CSR
+        #[inline]
+        unsafe fn _read() -> usize {
+            match () {
+                #[cfg(all(riscv, feature = "inline-asm"))]
+                () => {
+                    let r: usize;
+                    asm!("csrrs $0, $1, x0" : "=r"(r) : "i"($csr_number) :: "volatile");
+                    r
+                }
+
+                #[cfg(all(riscv, not(feature = "inline-asm")))]
+                () => {
+                    extern "C" {
+                        fn $asm_fn() -> usize;
+                    }
+
+                    $asm_fn()
+                }
+
+                #[cfg(not(riscv))]
+                () => unimplemented!(),
+            }
+        }
+    };
+}
 
 macro_rules! read_csr_rv32 {
     ($csr_number:expr, $asm_fn: ident) => {
@@ -25,6 +53,18 @@ macro_rules! read_csr_rv32 {
                 #[cfg(not(riscv32))]
                 () => unimplemented!(),
             }
+        }
+    };
+}
+
+macro_rules! read_csr_as {
+    ($register:ident, $csr_number:expr, $asm_fn: ident) => {
+        read_csr!($csr_number, $asm_fn);
+
+        /// Reads the CSR
+        #[inline]
+        pub fn read() -> $register {
+            $register { bits: unsafe { _read() } }
         }
     };
 }
@@ -77,4 +117,83 @@ macro_rules! write_csr_as_usize_rv32 {
             unsafe{ _write(bits) }
         }
     };
+}
+
+macro_rules! set {
+    ($csr_number:expr, $asm_fn: ident) => {
+        /// Set the CSR
+        #[inline]
+        #[allow(unused_variables)]
+        unsafe fn _set(bits: usize) {
+            match () {
+                #[cfg(all(riscv, feature = "inline-asm"))]
+                () => asm!("csrrs x0, $1, $0" :: "r"(bits), "i"($csr_number) :: "volatile"),
+
+                #[cfg(all(riscv, not(feature = "inline-asm")))]
+                () => {
+                    extern "C" {
+                        fn $asm_fn(bits: usize);
+                    }
+
+                    $asm_fn(bits);
+                }
+
+                #[cfg(not(riscv))]
+                () => unimplemented!(),
+            }
+        }
+    };
+}
+
+macro_rules! clear {
+    ($csr_number:expr, $asm_fn: ident) => {
+        /// Clear the CSR
+        #[inline]
+        #[allow(unused_variables)]
+        unsafe fn _clear(bits: usize) {
+            match () {
+                #[cfg(all(riscv, feature = "inline-asm"))]
+                () => asm!("csrrc x0, $1, $0" :: "r"(bits), "i"($csr_number) :: "volatile"),
+
+                #[cfg(all(riscv, not(feature = "inline-asm")))]
+                () => {
+                    extern "C" {
+                        fn $asm_fn(bits: usize);
+                    }
+
+                    $asm_fn(bits);
+                }
+
+                #[cfg(not(riscv))]
+                () => unimplemented!(),
+            }
+        }
+    };
+}
+
+macro_rules! set_csr {
+    ($(#[$attr:meta])*, $set_field:ident, $e:expr) => {
+        $(#[$attr])*
+        #[inline]
+        pub unsafe fn $set_field() {
+            _set($e);
+        }
+    }
+}
+
+macro_rules! clear_csr {
+    ($(#[$attr:meta])*, $clear_field:ident, $e:expr) => {
+        $(#[$attr])*
+        #[inline]
+        pub unsafe fn $clear_field() {
+            _clear($e);
+        }
+    }
+}
+
+macro_rules! set_clear_csr {
+    ($(#[$attr:meta])*, $set_field:ident, $clear_field:ident, $e:expr) => {
+        set_csr!($(#[$attr])*, $set_field, $e);
+        clear_csr!($(#[$attr])*, $clear_field, $e);
+    }
 }

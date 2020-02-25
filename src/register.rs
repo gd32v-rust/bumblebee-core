@@ -1,14 +1,15 @@
 //! Bumblebee core defined RISC-V CSR's
+//! 
+//! All the following Bumblebee defined CSR's are _Machine Mode Readable
+//! (MRW)_ or _Machine Mode Read-Only (MRO)_. These CSR's should operate
+//! normally under Machine Mode, but would produce illegal instruction
+//! exception when read or written under User Mode.
+//! 
+//! Ref: Section 7.2, Bumblebee Core Datasheet
 
-/// mcountinhibit register
-pub mod mcountinhibit {
-    read_csr_as_usize_rv32!(0x320, __read_mcountinhibit);
-    write_csr_as_usize_rv32!(0x320, __write_mcountinhibit);
-}
-/// mnvec register
-pub mod mnvec {
-    read_csr_as_usize_rv32!(0x7c3, __read_mnvec);
-}
+pub mod mcountinhibit;
+pub mod mnvec; // todo
+
 /// msubm register
 pub mod msubm {
     read_csr_as_usize_rv32!(0x7c4, __read_msubm);
